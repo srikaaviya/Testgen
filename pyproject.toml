@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "testgen"
+version = "0.1.0"
+description = "Auto-generate pytest tests for any Python file using Groq AI"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "typer",
+    "groq",
+    "python-dotenv",
+]
+
+[[project.authors]]
+name = "SriKaaviya"
+email = "srikaaviya.rceg@gmail.com"
+
+[project.scripts]
+testgen = "cli:app"

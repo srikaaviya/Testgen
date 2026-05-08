@@ -1,0 +1,8 @@
+to run a single file, folder
+--> python cli.py samples/auth.py
+--> python cli.py --folder samples/
+
+to test:
+--> pytest samples/test_auth.py -v
+-v = verbose — shows each test name and pass/fail individually
+

@@ -1,0 +1,56 @@
+import typer
+from pathlib import Path
+from extractor import extract_functions
+from generator import generate_all_tests
+from writer import write_tests
+
+app = typer.Typer()
+
+@app.command()
+def main(
+    file: str = typer.Argument(None, help="Path to a single Python file"),
+    folder: str = typer.Option(None, "--folder", "-d", help="Path to a folder of Python files"),
+    output: str = typer.Option(None, "--output", "-o", help="Directory to save generated test files"),
+):
+# typer.option --> we need to definitely mention --folder to folder
+# typer.argument --> either mention file name or --file filename, if both file and folder were Arguments,
+# Typer wouldn't know which is which. thats why folder is optional
+
+    if not file and not folder:
+        typer.echo("Error: provide a file path or --folder")
+        raise typer.Exit(code=1)
+
+    if file:
+        run_for_file(file, output)
+
+    if folder:
+        folder_path = Path(folder)
+        py_files = list(folder_path.rglob("*.py")) #recursive glob
+
+        if not py_files:
+            typer.echo(f"No Python files found in {folder}")
+            raise typer.Exit(code=1)
+
+        for py_file in py_files:
+            run_for_file(str(py_file), output)
+
+
+def run_for_file(filepath: str, output_dir: str = None):
+    typer.echo(f"Processing: {filepath}")
+
+    fns = extract_functions(filepath)
+
+    if not fns:
+        typer.echo(f"  No public functions found.")
+        return
+
+    typer.echo(f"  Found {len(fns)} function(s): {[f.name for f in fns]}")
+
+    test_content = generate_all_tests(fns, filepath)
+    output_path = write_tests(filepath, test_content, output_dir)
+
+    typer.echo(f"  Tests written to: {output_path}")
+
+
+if __name__ == "__main__":
+    app()
