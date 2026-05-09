@@ -3,6 +3,9 @@ from pathlib import Path
 from extractor import extract_functions
 from generator import generate_all_tests
 from writer import write_tests
+from detector import detect_file_type
+
+SKIP_TYPES = {"selenium", "requests"}
 
 app = typer.Typer()
 
@@ -37,6 +40,15 @@ def main(
 
 def run_for_file(filepath: str, output_dir: str = None):
     typer.echo(f"Processing: {filepath}")
+
+    file_type = detect_file_type(filepath)
+
+    if file_type in SKIP_TYPES:
+        typer.echo(f"  Skipping — {file_type} files are not supported.")
+        return
+
+    if file_type == "db":
+        typer.echo(f"  Warning — DB file detected. Results may be partial.")
 
     fns = extract_functions(filepath)
 
