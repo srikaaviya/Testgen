@@ -4,6 +4,7 @@ from extractor import extract_functions
 from generator import generate_all_tests
 from writer import write_tests
 from detector import detect_file_type
+from coverage_run import run_coverage
 
 SKIP_TYPES = {"selenium", "requests"}
 
@@ -58,10 +59,13 @@ def run_for_file(filepath: str, output_dir: str = None):
 
     typer.echo(f"  Found {len(fns)} function(s): {[f.name for f in fns]}")
 
-    test_content = generate_all_tests(fns, filepath)
+    test_content = generate_all_tests(fns, filepath, file_type)
     output_path = write_tests(filepath, test_content, output_dir)
 
     typer.echo(f"  Tests written to: {output_path}")
+
+    typer.echo(f"  Running coverage...")
+    run_coverage(output_path, filepath)
 
 
 if __name__ == "__main__":
