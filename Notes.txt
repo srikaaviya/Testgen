@@ -5,4 +5,15 @@ to run a single file, folder
 to test:
 --> pytest samples/test_auth.py -v
 -v = verbose — shows each test name and pass/fail individually
+-----------------------------------------------------------------------------------
+
+__pycache__/  --> Python itself generates these every time you run a .py file
+*.pyc  --> Python itself generates these every time you run a .py file
+dist/ —> python -m build command generates this when packaging for PyPI
+*.egg-info/ —> pip generates this when you do pip install -e . (local install)
+
+-----------------------------------------------------------------------------------
+
+
+
 

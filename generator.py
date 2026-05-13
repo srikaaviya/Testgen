@@ -17,7 +17,12 @@ def build_prompt(fn: FunctionInfo, module_name: str, file_type: str) -> str:
 - Do NOT include any explanation or markdown — return only raw Python code
 - Do NOT add any import statements
 - Test functions must have NO parameters at all — hardcode all values inside the function body
-- Do NOT use non-ASCII characters in test values"""
+- Every test function definition MUST have parentheses: def test_something():
+- Do NOT define any classes inside the test file — use classes imported from the module directly
+- Do NOT use non-ASCII characters in test values
+- Before writing each assertion, trace through the function line by line with the test input to find the exact return value
+- Only generate an exception test if the function explicitly raises an exception in its code
+- Never assume a function raises TypeError or ValueError unless the function body contains raise TypeError or raise ValueError"""
 
     db_rules = f"""
 - For mocking, use monkeypatch with MagicMock like this exact pattern:
@@ -75,14 +80,27 @@ def get_source_imports(filepath: str) -> str:
     return "\n".join(import_lines)
 
 
+def get_class_names(filepath: str) -> list[str]:
+    import ast
+    from pathlib import Path
+
+    source = Path(filepath).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    return [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+
+
 def generate_all_tests(functions: list[FunctionInfo], filepath: str, file_type: str = "pure") -> str:
     from pathlib import Path
     module_name = Path(filepath).stem
     function_names = ", ".join(fn.name for fn in functions)
     source_imports = get_source_imports(filepath)
 
+    # also import any classes defined in the source file
+    class_names = get_class_names(filepath)
+    all_names = function_names + (", " + ", ".join(class_names) if class_names else "")
+
     mock_import = "from unittest.mock import MagicMock\n" if file_type == "db" else ""
-    header = f"import pytest\n{mock_import}{source_imports}\nfrom {module_name} import {function_names}\n\n"
+    header = f"import pytest\n{mock_import}{source_imports}\nfrom {module_name} import {all_names}\n\n"
 
     test_blocks = []
     for fn in functions:
