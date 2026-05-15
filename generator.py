@@ -1,11 +1,13 @@
 import os
-from groq import Groq
+import asyncio
+from groq import AsyncGroq
 from dotenv import load_dotenv
 from extractor import FunctionInfo
 
 load_dotenv()
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# AsyncGroq — async version of Groq client
+client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 
 
 def build_prompt(fn: FunctionInfo, module_name: str, file_type: str) -> str:
@@ -33,9 +35,18 @@ def build_prompt(fn: FunctionInfo, module_name: str, file_type: str) -> str:
 
     rules = base_rules + (db_rules if file_type == "db" else "")
 
+    class_context = (
+        f"This function is a method of the class `{fn.class_name}`. "
+        f"Instantiate `{fn.class_name}()` before calling the method."
+        if fn.class_name else
+        "This is a standalone function — call it directly without instantiating any class."
+    )
+
     return f"""You are an expert Python testing engineer.
 
 Generate pytest unit tests for the following Python function.
+
+Context: {class_context}
 
 Rules:
 {rules}
@@ -45,13 +56,13 @@ Function:
 """
 
 
-def generate_test(fn: FunctionInfo, module_name: str, file_type: str) -> str:
+async def generate_test(fn: FunctionInfo, module_name: str, file_type: str) -> str:
     prompt = build_prompt(fn, module_name, file_type)
 
-    response = client.chat.completions.create(
-        model = "llama-3.3-70b-versatile",
-        messages = [{"role": "user", "content": prompt}],
-        temperature = 0.2,
+    response = await client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
     )
 
     return response.choices[0].message.content.strip()
@@ -68,7 +79,6 @@ def get_source_imports(filepath: str) -> str:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                name = alias.asname if alias.asname else alias.name
                 import_lines.append(f"import {alias.name}" + (f" as {alias.asname}" if alias.asname else ""))
         elif isinstance(node, ast.ImportFrom):
             module = node.module or ""
@@ -89,7 +99,7 @@ def get_class_names(filepath: str) -> list[str]:
     return [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
 
 
-def generate_all_tests(functions: list[FunctionInfo], filepath: str, file_type: str = "pure") -> str:
+async def generate_all_tests(functions: list[FunctionInfo], filepath: str, file_type: str = "pure") -> str:
     from pathlib import Path
     module_name = Path(filepath).stem
     function_names = ", ".join(fn.name for fn in functions)
@@ -102,15 +112,17 @@ def generate_all_tests(functions: list[FunctionInfo], filepath: str, file_type: 
     mock_import = "from unittest.mock import MagicMock\n" if file_type == "db" else ""
     header = f"import pytest\n{mock_import}{source_imports}\nfrom {module_name} import {all_names}\n\n"
 
-    test_blocks = []
-    for fn in functions:
-        test_blocks.append(generate_test(fn, module_name, file_type))
+    # fire all Groq API calls simultaneously
+    test_blocks = await asyncio.gather(
+        *[generate_test(fn, module_name, file_type) for fn in functions]
+    )
+
     return header + "\n\n".join(test_blocks)
 
 
 if __name__ == "__main__":
-    from extractor import extract_functions     #only needed for manual test
+    from extractor import extract_functions  # only needed for manual test
 
     fns = extract_functions("samples/sample.py")
-    result = generate_all_tests(fns, "samples/sample.py")
+    result = asyncio.run(generate_all_tests(fns, "samples/sample.py"))
     print(result)

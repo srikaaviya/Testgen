@@ -65,8 +65,8 @@ async def generate(file: UploadFile = File(...)):  # user uploads a .py file
                 detail="No public functions found in the file"
             )
 
-        # step 7 — generate test code using Groq
-        test_content = generate_all_tests(functions, tmp_path, file_type)
+        # step 7 — generate test code using Groq (async — all functions in parallel)
+        test_content = await generate_all_tests(functions, tmp_path, file_type)
 
     finally:
         os.remove(tmp_path)  # always delete temp file even if an error occurs
