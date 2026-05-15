@@ -3,15 +3,20 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "testgen"
+name = "pytestgen-ai"
 version = "0.1.0"
-description = "Auto-generate pytest tests for any Python file using Groq AI"
+description = "Auto-generate pytest tests for Python functions using Groq AI"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "typer",
     "groq",
     "python-dotenv",
+    "pytest",
+    "pytest-cov",
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
 ]
 
 [[project.authors]]
