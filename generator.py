@@ -28,12 +28,12 @@ def build_prompt(fn: FunctionInfo, module_name: str, file_type: str) -> str:
 
     db_rules = f"""
 - For mocking, use monkeypatch with MagicMock like this exact pattern:
-    mock_conn = MagicMock()
-    monkeypatch.setattr('{module_name}.get_db_connection', lambda: mock_conn)
+    mock_obj = MagicMock()
+    monkeypatch.setattr('{module_name}.function_name', lambda: mock_obj)
 - monkeypatch.setattr string form takes exactly 2 args: ('module.attribute', value) — never 3 args
 - Never use monkeypatch.setattr(...).return_value — monkeypatch returns None, not a mock"""
 
-    rules = base_rules + (db_rules if file_type == "db" else "")
+    rules = base_rules + (db_rules if fn.external_calls else "")
 
     class_context = (
         f"This function is a method of the class `{fn.class_name}`. "
@@ -42,11 +42,22 @@ def build_prompt(fn: FunctionInfo, module_name: str, file_type: str) -> str:
         "This is a standalone function — call it directly without instantiating any class."
     )
 
+    # tell Groq exactly what external calls were detected so it knows what to mock
+    if fn.external_calls:
+        calls_list = ", ".join(fn.external_calls)
+        mock_context = (
+            f"This function makes the following external calls: {calls_list}. "
+            f"Use monkeypatch to mock these in tests where needed."
+        )
+    else:
+        mock_context = "This function has no external calls — no mocking needed."
+
     return f"""You are an expert Python testing engineer.
 
 Generate pytest unit tests for the following Python function.
 
 Context: {class_context}
+Mocking: {mock_context}
 
 Rules:
 {rules}
@@ -109,7 +120,8 @@ async def generate_all_tests(functions: list[FunctionInfo], filepath: str, file_
     class_names = get_class_names(filepath)
     all_names = function_names + (", " + ", ".join(class_names) if class_names else "")
 
-    mock_import = "from unittest.mock import MagicMock\n" if file_type == "db" else ""
+    has_external_calls = any(fn.external_calls for fn in functions)
+    mock_import = "from unittest.mock import MagicMock\n" if has_external_calls else ""
     header = f"import pytest\n{mock_import}{source_imports}\nfrom {module_name} import {all_names}\n\n"
 
     # fire all Groq API calls simultaneously

@@ -7,7 +7,7 @@ from writer import write_tests
 from detector import detect_file_type
 from coverage_run import run_coverage
 
-SKIP_TYPES = {"selenium", "requests"}
+SKIP_TYPES = {"selenium"}  # requests is now handled via dynamic mocking detection
 
 app = typer.Typer()
 
@@ -49,8 +49,8 @@ def run_for_file(filepath: str, output_dir: str = None):
         typer.echo(f"  Skipping — {file_type} files are not supported.")
         return
 
-    if file_type == "db":
-        typer.echo(f"  Warning — DB file detected. Results may be partial.")
+    if file_type in {"db", "requests"}:
+        typer.echo(f"  Warning — {file_type} file detected. External calls will be mocked automatically.")
 
     fns = extract_functions(filepath)
 
