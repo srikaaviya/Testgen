@@ -4,10 +4,10 @@ Auto-generate pytest tests for Python functions using Groq AI.
 
 ## What it does
 
-`pytestgen-ai` reads your Python files, extracts all public functions using AST parsing, sends each function to Groq AI, and writes a complete `test_<filename>.py` file with pytest test cases — including coverage report. Works best with pure functions and business logic.
+`pytestgen-ai` reads your Python files, extracts all public functions using AST parsing, sends each function to Groq AI in parallel, and writes a complete `test_<filename>.py` file with pytest test cases — including a coverage report.
 
 ```
-your code → AST parsing → Groq AI → test file → coverage report
+your code → AST parsing → Groq AI (parallel) → test file → coverage report
 ```
 
 ## Installation
@@ -95,11 +95,12 @@ def test_invalid_credentials_login():
 
 ## How it works
 
-1. **AST parsing** — uses Python's built-in `ast` module to extract every public function from your file
-2. **File type detection** — detects if the file uses DB, Selenium, or requests
-3. **Groq AI** — sends each function's source code to Groq with engineered prompts
-4. **Test file** — writes a complete `test_<filename>.py` ready to run with pytest
-5. **Coverage** — automatically runs `pytest --cov` and displays the report
+1. **AST parsing** — uses Python's built-in `ast` module to extract every public function and class from your file
+2. **External call detection** — automatically detects DB calls, requests, and other external dependencies that need mocking
+3. **File type detection** — detects if the file uses DB, Selenium, or requests
+4. **Groq AI (parallel)** — sends all functions to Groq simultaneously using async, so large files generate faster
+5. **Test file** — writes a complete `test_<filename>.py` ready to run with pytest
+6. **Coverage** — automatically runs `pytest --cov` and displays the report
 
 ## Supported file types
 
@@ -107,13 +108,20 @@ def test_invalid_credentials_login():
 |---|---|
 | Pure functions | ✅ Full support |
 | Input validation | ✅ Full support |
-| Database (psycopg2, SQLAlchemy) | ⚠️ Partial — results may vary |
-| Selenium | ❌ Skipped |
-| requests / httpx | ❌ Skipped |
+| Class methods | ✅ Supported — class is imported, methods called via instance |
+| Database (psycopg2, SQLAlchemy) | ⚠️ Partial — external calls mocked automatically |
+| requests / httpx | ⚠️ Partial — external calls mocked automatically |
+| Selenium | ❌ Skipped — browser automation not supported |
 
 ## REST API
 
-`pytestgen-ai` also ships with a FastAPI endpoint:
+`pytestgen-ai` also ships with a FastAPI endpoint. Install with the optional API dependencies:
+
+```bash
+pip install pytestgen-ai[api]
+```
+
+Then run:
 
 ```bash
 uvicorn api:app --reload
@@ -126,16 +134,18 @@ Interactive docs available at `http://127.0.0.1:8000/docs`.
 ## Tech stack
 
 - [Typer](https://typer.tiangolo.com/) — CLI
-- [Groq API](https://console.groq.com/) — AI test generation
-- [Python AST](https://docs.python.org/3/library/ast.html) — function extraction
+- [Groq API](https://console.groq.com/) — AI test generation (llama-3.3-70b-versatile)
+- [Python AST](https://docs.python.org/3/library/ast.html) — function extraction and external call detection
 - [pytest-cov](https://pytest-cov.readthedocs.io/) — coverage reports
 - [FastAPI](https://fastapi.tiangolo.com/) — REST API
 
 ## Limitations
 
-- Works best with pure functions and business logic
-- Functions with external dependencies (DB, API calls) may generate partial tests
-- Generated tests should be reviewed before committing to production
+- Works best with **pure utility functions and business logic**
+- **Algorithm-heavy code** (linked lists, trees, monotonic stacks) may have incorrect expected values in assertions — the AI traces complex pointer logic imperfectly
+- **Duplicate return values** across functions in the same file may cause test confusion
+- Generated tests should always be **reviewed before committing to production**
+- Requires a Groq API key (free tier available)
 
 ## License
 

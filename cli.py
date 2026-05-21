@@ -7,7 +7,7 @@ from writer import write_tests
 from detector import detect_file_type
 from coverage_run import run_coverage
 
-SKIP_TYPES = {"selenium"}  # requests is now handled via dynamic mocking detection
+SKIP_TYPES = {"selenium"}
 
 app = typer.Typer()
 

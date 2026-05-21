@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pytestgen-ai"
-version = "0.1.0"
+version = "0.2.0"
 description = "Auto-generate pytest tests for Python functions using Groq AI"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -14,6 +14,10 @@ dependencies = [
     "python-dotenv",
     "pytest",
     "pytest-cov",
+]
+
+[project.optional-dependencies]
+api = [
     "fastapi",
     "uvicorn",
     "python-multipart",

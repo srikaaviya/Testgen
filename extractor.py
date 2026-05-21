@@ -20,10 +20,11 @@ class FunctionInfo:
 
 
 class FunctionVisitor(ast.NodeVisitor):
-    def __init__(self, source_lines: list[str]):
+    def __init__(self, source_lines: list[str], imported_names: set):
         self.source_lines = source_lines
         self.functions = []
         self.current_class = None   # tracks which class we're currently inside
+        self.imported_names = imported_names  # names brought in via import statements
 
     def visit_ClassDef(self, node: ast.ClassDef):
         # entering a class — save the class name
@@ -44,22 +45,49 @@ class FunctionVisitor(ast.NodeVisitor):
         self._process_function(node)
         self.generic_visit(node)
 
-    def _detect_external_calls(self, node) -> list[str]:
+    # Python builtins that should never be treated as external calls to mock
+    BUILTIN_NAMES = {
+        "print", "range", "len", "int", "str", "float", "bool", "list", "dict",
+        "set", "tuple", "type", "isinstance", "issubclass", "hasattr", "getattr",
+        "setattr", "delattr", "enumerate", "zip", "map", "filter", "sorted",
+        "reversed", "sum", "min", "max", "abs", "round", "open", "input",
+        "repr", "format", "hash", "id", "iter", "next", "super", "vars",
+        "dir", "callable", "any", "all", "hex", "oct", "bin", "chr", "ord",
+    }
+
+    # standard library names that should not be mocked
+    STDLIB_NAMES = {
+        "defaultdict", "deque", "Counter", "OrderedDict", "namedtuple",
+        "chain", "product", "combinations", "permutations", "groupby",
+        "datetime", "timedelta", "date", "time",
+        "Path", "json", "csv", "re", "math", "random", "copy", "deepcopy",
+        "partial", "wraps", "reduce", "heappush", "heappop", "bisect",
+        "StringIO", "BytesIO", "dataclass", "field",
+    }
+
+    def _detect_external_calls(self, node, imported_names: set) -> list[str]:
         calls = []
+        skip = self.BUILTIN_NAMES | self.STDLIB_NAMES
+
         for child in ast.walk(node):
             if not isinstance(child, ast.Call):
                 continue
             # detect calls like requests.get, psycopg2.connect, boto3.client
+            # only flag if the caller was actually imported (not a local variable)
             if isinstance(child.func, ast.Attribute):
                 try:
                     caller = child.func.value.id
                     method = child.func.attr
-                    calls.append(f"{caller}.{method}")
+                    if caller in imported_names and caller not in skip:
+                        calls.append(f"{caller}.{method}")
                 except AttributeError:
                     pass
-            # detect simple calls like get_db_connection()
+            # detect simple calls like get_db_connection() — skip builtins and stdlib
             elif isinstance(child.func, ast.Name):
-                calls.append(child.func.id)
+                name = child.func.id
+                if name not in skip and name in imported_names:
+                    calls.append(name)
+
         # remove duplicates while preserving order
         seen = set()
         unique_calls = []
@@ -81,7 +109,7 @@ class FunctionVisitor(ast.NodeVisitor):
         raw_source = "\n".join(self.source_lines[start:end])
         source = textwrap.dedent(raw_source)  # indentation removal
 
-        external_calls = self._detect_external_calls(node)
+        external_calls = self._detect_external_calls(node, self.imported_names)
 
         self.functions.append(FunctionInfo(
             name=node.name,
@@ -99,7 +127,18 @@ def extract_functions(filepath: str) -> list[FunctionInfo]:
     tree = ast.parse(source_code)
     source_lines = source_code.splitlines()
 
-    visitor = FunctionVisitor(source_lines)
+    # collect every name brought in via import statements
+    # e.g. "import requests" → "requests", "from psycopg2 import connect" → "connect"
+    imported_names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imported_names.add(alias.asname or alias.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                imported_names.add(alias.asname or alias.name)
+
+    visitor = FunctionVisitor(source_lines, imported_names)
     visitor.visit(tree)
 
     return visitor.functions
