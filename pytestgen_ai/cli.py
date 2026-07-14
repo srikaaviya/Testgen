@@ -1,11 +1,11 @@
 import typer
 import asyncio
 from pathlib import Path
-from extractor import extract_functions
-from generator import generate_all_tests
-from writer import write_tests
-from detector import detect_file_type
-from coverage_run import run_coverage
+from pytestgen_ai.extractor import extract_functions
+from pytestgen_ai.generator import generate_all_tests
+from pytestgen_ai.writer import write_tests
+from pytestgen_ai.detector import detect_file_type
+from pytestgen_ai.coverage_run import run_coverage
 
 SKIP_TYPES = {"selenium"}
 

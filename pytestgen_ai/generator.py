@@ -2,7 +2,7 @@ import os
 import asyncio
 from groq import AsyncGroq
 from dotenv import load_dotenv
-from extractor import FunctionInfo
+from pytestgen_ai.extractor import FunctionInfo
 
 load_dotenv()
 

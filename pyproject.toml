@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pytestgen-ai"
-version = "0.2.0"
+version = "0.1.0"
 description = "Auto-generate pytest tests for Python functions using Groq AI"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -28,4 +28,7 @@ name = "SriKaaviya"
 email = "srikaaviya.rceg@gmail.com"
 
 [project.scripts]
-testgen = "cli:app"
+testgen = "pytestgen_ai.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pytestgen_ai"]

@@ -3,9 +3,9 @@ from pydantic import BaseModel
 import tempfile
 import os
 
-from extractor import extract_functions
-from generator import generate_all_tests
-from detector import detect_file_type
+from pytestgen_ai.extractor import extract_functions
+from pytestgen_ai.generator import generate_all_tests
+from pytestgen_ai.detector import detect_file_type
 
 app = FastAPI(
     title="testgen API",
